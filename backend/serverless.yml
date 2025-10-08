@@ -1,0 +1,138 @@
+service: expense-tracker
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: ${opt:region, 'ap-southeast-2'}
+  stage: ${opt:stage, 'dev'}
+  memorySize: 256
+  timeout: 29
+  environment:
+    DYNAMODB_TABLE_NAME: expense-tracker-prod
+    GEMINI_API_KEY: ${env:GEMINI_API_KEY, ''}
+    LOG_LEVEL: INFO
+    ENVIRONMENT: production
+  httpApi:
+    cors: true
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:CreateTable
+            - dynamodb:DescribeTable
+          Resource:
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_NAME}"
+            - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_NAME}/index/*"
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: "arn:aws:logs:${self:provider.region}:*:*"
+
+# Package configuration - separate local development from AWS deployment
+package:
+  patterns:
+    # Exclude local development files
+    - '!local_main.py'
+    - '!local-run.sh'
+    - '!docker-compose.yml'
+    - '!run_tests.py'
+    - '!uvicorn'
+
+    # Exclude configuration files
+    - '!pytest.ini'
+    - '!dev-requirements.txt'
+    - '!.env'
+    - '!.env.*'
+
+    # Exclude tests
+    - '!tests/**'
+
+    # Exclude Python artifacts
+    - '!__pycache__/**'
+    - '!**/__pycache__/**'
+    - '!*.pyc'
+    - '!*.pyo'
+    - '!.pytest_cache/**'
+
+    # Exclude version control and IDE
+    - '!.git/**'
+    - '!.gitignore'
+    - '!.vscode/**'
+    - '!.idea/**'
+
+    # Include production files explicitly
+    - 'main.py'
+    - 'app_factory.py'
+    - 'api_routes.py'
+    - 'requirements.txt'
+    - 'core/**'
+    - 'services/**'
+
+functions:
+  api:
+    handler: main.handler
+    events:
+      - httpApi:
+          path: /{proxy+}
+          method: ANY
+          authorizer:
+            type: aws_iam
+      - httpApi:
+          path: /
+          method: ANY
+          authorizer:
+            type: aws_iam
+
+resources:
+  Resources:
+    ExpenseTrackerTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_NAME}
+        BillingMode: PAY_PER_REQUEST
+        AttributeDefinitions:
+          - AttributeName: PK
+            AttributeType: S
+          - AttributeName: SK
+            AttributeType: S
+          - AttributeName: GSI1PK
+            AttributeType: S
+          - AttributeName: GSI1SK
+            AttributeType: S
+        KeySchema:
+          - AttributeName: PK
+            KeyType: HASH
+          - AttributeName: SK
+            KeyType: RANGE
+        GlobalSecondaryIndexes:
+          - IndexName: GSI1
+            KeySchema:
+              - AttributeName: GSI1PK
+                KeyType: HASH
+              - AttributeName: GSI1SK
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+        SSESpecification:
+          SSEEnabled: true
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux

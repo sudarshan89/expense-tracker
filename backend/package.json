@@ -1,0 +1,15 @@
+{
+  "name": "expense-tracker-backend",
+  "version": "1.0.0",
+  "description": "Expense Tracker Backend",
+  "devDependencies": {
+    "dotenv-cli": "^10.0.0",
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.0.0"
+  },
+  "scripts": {
+    "deploy": "dotenv -e .env -- serverless deploy",
+    "remove": "serverless remove",
+    "logs": "serverless logs -f api -t"
+  }
+}

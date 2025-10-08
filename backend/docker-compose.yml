@@ -1,0 +1,8 @@
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: expense-tracker-dynamodb
+    ports:
+      - "8001:8000"  # Map container port 8000 to host port 8001
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    working_dir: /home/dynamodblocal

@@ -1,0 +1,136 @@
+# Seed data for Expense Tracker CLI
+# This file centralizes the seed datasets used by the CLI seed commands
+# Derived from docs/stories.md (S1.1–S1.3)
+
+# Owners (S1.1)
+owners:
+  - name: John
+    card_name: J Doe
+
+  - name: Jane
+    card_name: J Smith
+
+  - name: Jane-Joint
+    card_name: J Smith
+
+  - name: John-Joint
+    card_name: J Doe
+
+# Accounts (S1.2)
+accounts:
+  - account_name: Pocket-Money
+    bank_name: HSBC
+    owner_name: John
+    card_member: J Doe
+    active: true
+
+  - account_name: Salary
+    bank_name: HSBC
+    owner_name: John
+    card_member: J Doe
+    active: true
+
+  - account_name: CC-Holding
+    bank_name: HSBC
+    owner_name: John
+    card_member: J Doe
+    active: true
+
+  - account_name: Transport
+    bank_name: HSBC
+    owner_name: John
+    card_member: J Doe
+    active: true
+
+  - account_name: Card-Payments
+    bank_name: HSBC
+    owner_name: John
+    card_member: J Doe
+    active: true
+
+  - account_name: John-Joint
+    bank_name: HSBC
+    owner_name: John
+    card_member: J Doe
+    active: true
+
+  - account_name: Groceries
+    bank_name: Chase
+    owner_name: Jane
+    card_member: J Smith
+    active: true
+
+  - account_name: Jane-Joint
+    bank_name: HSBC
+    owner_name: Jane
+    card_member: J Smith
+    active: true
+
+# Categories (S1.3)
+categories:
+  - name: Utilities
+    labels:
+      - Electricity
+    account_id: CC-Holding John
+    card_name: J Doe
+    active: true
+
+  - name: Apple
+    labels:
+      - APPLE.COM/BILL
+    account_id: CC-Holding John
+    card_name: J Doe
+    active: true
+
+  - name: Internet
+    labels:
+      - broadcom
+    account_id: CC-Holding John
+    card_name: J Doe
+    active: true
+
+  - name: Card Payments
+    labels:
+      - PAYMENT - THANK YOU
+    account_id: Card-Payments John
+    card_name: J Doe
+    active: true
+
+  - name: JohnSpend
+    labels:
+      - cafe
+      - coffee
+      - OPENAI
+      - AMAZON WEB SERVICES
+      - SUSHI
+      - UBER BV
+      - UBER TRIP
+    account_id: Pocket-Money John
+    card_name: J Doe
+    active: true
+
+  - name: Groceries
+    labels:
+      - NOT-Organics
+    account_id: Groceries Jane
+    card_name: J Smith
+    active: true
+
+  - name: JaneSpend
+    labels:
+      - Cafe
+    account_id: Jane-Joint Jane
+    card_name: J Smith
+    active: true
+
+  - name: Jane-Unknown
+    labels: []
+    account_id: Jane-Joint Jane
+    card_name: J Smith
+    active: true
+
+  - name: John-Unknown
+    labels: []
+    account_id: John-Joint John
+    card_name: J Doe
+    active: true
