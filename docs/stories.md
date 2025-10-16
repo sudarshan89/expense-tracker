@@ -172,7 +172,7 @@
   - The category for a given expense can be updated by the user, via the CLI.
 
 ##### Task E3.3: Update Assigned Card Member for an expense
-###### Details 
+###### Details
 - The assigned_card_member should be updated under the following conditions.
   - As part of the auto-categorisation process, the assigned card member is updated with the card_name field of the category.
   - If the user manually updates the category, the assigned card member is updated with the card_name field of the category.
@@ -182,7 +182,39 @@
 - Operations allowed
   - The assigned_card_member is a derived field. It is computed by the code. It must match the Category.card_name from the Category table/entity.
   - The assigned_card_member for a given expense can be updated by the user, via the CLI.
- 
+
+##### Task E3.4: Bulk Category Assignment
+###### Details
+- Allow users to update the category for multiple expenses in a single CLI operation
+- User provides explicit list of expense IDs (comma-separated) and target category
+- System resolves partial IDs, validates each expense, and updates category
+- Each update is independent - failures don't prevent other updates from succeeding
+
+- Characteristics
+  - CLI-only feature (no new backend endpoints)
+  - Reuses existing single-expense update endpoint for each operation
+  - Supports partial expense IDs with auto-resolution
+  - Shows preview and requires confirmation before proceeding
+  - Provides real-time progress feedback during updates
+  - Returns detailed summary with success/failure counts
+  - Inherits all business logic: needs_review clearing, validation, assigned_card_member updates
+
+- Operations allowed
+  - CLI: `expense-tracker expenses bulk-update --category "CategoryName" --ids "id1,id2,id3"`
+    - `--category`: Required. Target category to assign
+    - `--ids`: Required. Comma-separated list of full or partial expense IDs
+    - Shows preview with resolved IDs and count
+    - Requires confirmation before applying changes
+    - Displays per-expense progress and final summary
+
+- Example Usage
+  ```bash
+  # Update multiple expenses to Coffee category
+  expense-tracker expenses bulk-update --category Coffee --ids "abc123,def456,ghi789"
+
+  # Works with partial IDs (auto-resolves)
+  expense-tracker expenses bulk-update --category JohnSpend --ids "abc,def,ghi"
+  ```
 
 
 ### E5: Reporting & Analytics

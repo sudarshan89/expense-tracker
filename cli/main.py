@@ -813,6 +813,106 @@ def update_expense_card_member(expense_id: str, card_member: str):
         sys.exit(1)
 
 
+@expenses.command("bulk-update")
+@click.option("--category", required=True, help="Category to assign to all expenses")
+@click.option("--ids", required=True, help="Comma-separated list of expense IDs (full or partial)")
+def bulk_update_expenses(category: str, ids: str):
+    """Update category for multiple expenses at once.
+
+    Examples:
+        # Using full IDs
+        expense-tracker expenses bulk-update --category Coffee --ids "abc123...,def456..."
+
+        # Using partial IDs (will auto-resolve)
+        expense-tracker expenses bulk-update --category Coffee --ids "abc123,def456,ghi789"
+    """
+    client = ExpenseTrackerClient()
+
+    # Parse IDs from comma-separated string
+    id_list = [id.strip() for id in ids.split(",") if id.strip()]
+
+    if not id_list:
+        console.print("[red]No expense IDs provided[/red]")
+        sys.exit(1)
+
+    # Resolve partial IDs to full IDs
+    console.print(f"[yellow]Resolving {len(id_list)} expense IDs...[/yellow]")
+    full_ids = []
+    resolution_errors = []
+
+    for expense_id in id_list:
+        try:
+            full_id = resolve_expense_id(client, expense_id)
+            if full_id:
+                full_ids.append(full_id)
+            else:
+                resolution_errors.append(f"Not found: {expense_id}")
+        except click.ClickException as e:
+            resolution_errors.append(f"{expense_id}: {str(e)}")
+
+    # Show resolution errors if any
+    if resolution_errors:
+        console.print("\n[red]ID Resolution Errors:[/red]")
+        for error in resolution_errors:
+            console.print(f"  • {error}")
+
+        if not full_ids:
+            console.print("[red]No valid expense IDs found[/red]")
+            sys.exit(1)
+
+        console.print(f"\n[yellow]Proceeding with {len(full_ids)} valid IDs[/yellow]")
+
+    # Show preview of what will be updated
+    console.print(f"\n[bold]Update Preview:[/bold]")
+    console.print(f"  Category: [cyan]{category}[/cyan]")
+    console.print(f"  Expense Count: [yellow]{len(full_ids)}[/yellow]")
+    console.print(f"  IDs: {', '.join([id[:8] + '...' for id in full_ids[:5]])}")
+    if len(full_ids) > 5:
+        console.print(f"       ... and {len(full_ids) - 5} more")
+
+    # Confirmation prompt
+    if not Confirm.ask(f"\nUpdate {len(full_ids)} expense(s) to category '{category}'?"):
+        console.print("Operation cancelled")
+        return
+
+    # Update each expense by calling existing endpoint
+    console.print(f"\n[yellow]Updating expenses...[/yellow]")
+    success_count = 0
+    failure_count = 0
+    failures = []
+
+    for expense_id in full_ids:
+        update_data = {"category": category}
+        result = client.make_request(
+            "PATCH", f"/expenses/{expense_id}", json=update_data, quiet=True
+        )
+
+        if result:
+            success_count += 1
+            console.print(f"  [green]✓ {expense_id[:8]}...[/green]")
+        else:
+            failure_count += 1
+            failures.append(expense_id)
+            console.print(f"  [red]✗ {expense_id[:8]}... (failed)[/red]")
+
+    # Display summary
+    console.print(f"\n[bold]Bulk Update Results:[/bold]")
+    console.print(f"  Total: {len(full_ids)}")
+    console.print(f"  [green]Success: {success_count}[/green]")
+    console.print(f"  [red]Failed: {failure_count}[/red]")
+
+    if failure_count > 0:
+        console.print("\n[red]Failed IDs:[/red]")
+        for failed_id in failures:
+            console.print(f"  • {failed_id[:8]}...")
+
+    if success_count > 0:
+        console.print(f"\n[green]✓ Successfully updated {success_count} expense(s)[/green]")
+
+    if failure_count > 0:
+        sys.exit(1)
+
+
 @expenses.command("delete")
 @click.argument("expense_id")
 def delete_expense(expense_id: str):
@@ -985,10 +1085,47 @@ def upload_csv(file_path: str):
 
 
 # Reports Commands
-@cli.group()
-def reports():
-    """Generate expense reports."""
-    pass
+@cli.group(invoke_without_command=True)
+@click.pass_context
+@click.option("--start-date", help="Start date (YYYY-MM-DD)")
+@click.option("--end-date", help="End date (YYYY-MM-DD)")
+@click.option(
+    "--month",
+    help="Month filter (3-letter abbreviation: Jan, Feb, etc.). Defaults to previous month. Overrides start/end dates.",
+)
+@click.option("--category", help="Category name")
+@click.option("--assigned-card-member", help="Assigned card member name")
+@click.option("--needs-review", is_flag=True, help="Show only expenses needing review")
+@click.option("--summary", is_flag=True, help="Show summary only (no expense details)")
+def reports(
+    ctx,
+    start_date: Optional[str],
+    end_date: Optional[str],
+    month: Optional[str],
+    category: Optional[str],
+    assigned_card_member: Optional[str],
+    needs_review: bool,
+    summary: bool,
+):
+    """Generate expense reports.
+
+    Defaults to 'by-account' report if no subcommand is specified.
+    The report groups expenses by assigned_card_member (not original card_member).
+    Use --month for quick date filtering (11th to 11th window), or --start-date/--end-date for custom ranges.
+    By default, reports for the previous month.
+    """
+    if ctx.invoked_subcommand is None:
+        # No subcommand specified, invoke by-account with the provided options
+        ctx.invoke(
+            report_by_account,
+            start_date=start_date,
+            end_date=end_date,
+            month=month,
+            category=category,
+            assigned_card_member=assigned_card_member,
+            needs_review=needs_review,
+            summary=summary,
+        )
 
 
 @reports.command("by-account")
