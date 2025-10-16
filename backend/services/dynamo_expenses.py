@@ -616,11 +616,13 @@ def update_expense(expense_id: str, update_data: ExpenseUpdate) -> Optional[Expe
         update_expressions.append("category = :category")
         update_expressions.append("assigned_card_member = :assigned_card_member")
         update_expressions.append("account_id = :account_id")
+        update_expressions.append("needs_review = :needs_review")
         expression_values[":category"] = update_data.category
         expression_values[":assigned_card_member"] = (
             updated_expense.assigned_card_member
         )
         expression_values[":account_id"] = new_category.account_id
+        expression_values[":needs_review"] = False
 
     # Handle direct assigned_card_member update (only if category is not being updated)
     elif update_data.assigned_card_member is not None:

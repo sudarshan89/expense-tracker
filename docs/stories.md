@@ -162,6 +162,11 @@
     - If matches are found, restrict the candidate set to those categories before selecting the highest score.
     - If no card-member match is found or a tie remains after filtering, retain the deterministic tie-breaker (alphabetical) to pick the stored category and place the rest in `category_hint`.
 - After auto-categorisation completes, `category_hint` is always persisted as a list (possibly empty) so downstream consumers can rely on the field's presence.
+- needs_review Lifecycle:
+  - Set to `True` when an expense is auto-categorized as "Unknown" (no historical match or label match found)
+  - Automatically cleared to `False` when the category is manually updated by the user
+  - This ensures reviewed expenses are no longer flagged for review
+  - The flag is only set during auto-categorization; successful categorization (historical or label match) keeps it as `False`
 - Operations allowed
   - The category is a derived field. It is computed by the code. It must match the Category.Name from the Category table/entity.
   - The category for a given expense can be updated by the user, via the CLI.

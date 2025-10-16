@@ -438,3 +438,50 @@ class TestAutoCategorizationService:
         )
         assert updated is not None
         assert updated.assigned_card_member == "T Owner"
+
+    def test_needs_review_cleared_on_manual_category_update(
+        self, categorization_service, sample_categories, clean_db
+    ):
+        """Test that needs_review flag is cleared when category is manually updated."""
+        from core.models import ExpenseUpdate
+
+        # Create an expense that gets categorized as Unknown (needs_review=True)
+        new_expense = Expense(
+            date=datetime.now(),
+            description="UNKNOWN MERCHANT XYZ",
+            card_member="T Owner",
+            amount=Decimal("25.00"),
+        )
+
+        # Auto-categorize (should result in Unknown with needs_review=True)
+        categorized_expense = categorization_service.categorize_expense(new_expense)
+        assert categorized_expense.category == "TestOwner-Unknown"
+        assert categorized_expense.needs_review is True
+
+        # Persist the expense
+        persisted_expense = db.create_expense(
+            ExpenseCreate(
+                date=categorized_expense.date,
+                description=categorized_expense.description,
+                card_member=categorized_expense.card_member,
+                amount=categorized_expense.amount,
+                category=categorized_expense.category,
+                needs_review=categorized_expense.needs_review,
+            )
+        )
+
+        # Verify it was persisted with needs_review=True
+        retrieved_expense = db.get_expense(persisted_expense.expense_id)
+        assert retrieved_expense.needs_review is True
+        assert retrieved_expense.category == "TestOwner-Unknown"
+
+        # Manually update the category (simulate user review)
+        updated_expense = db.update_expense(
+            persisted_expense.expense_id, ExpenseUpdate(category="Coffee")
+        )
+
+        # Verify needs_review flag is now cleared
+        assert updated_expense is not None
+        assert updated_expense.category == "Coffee"
+        assert updated_expense.needs_review is False
+        assert updated_expense.assigned_card_member == "T Owner"
