@@ -362,10 +362,19 @@ def create_account(account_name: str, bank_name: str, owner_name: str, active: b
     """Create a new account."""
     client = ExpenseTrackerClient()
 
+    # Fetch the owner to get their card_name (required for card_member field)
+    owner = client.make_request("GET", f"/owners/{owner_name}", quiet=True)
+    if not owner:
+        console.print(
+            f"[red]✗ Owner '{owner_name}' not found. Please create the owner first.[/red]"
+        )
+        sys.exit(1)
+
     account_data = {
         "account_name": account_name,
         "bank_name": bank_name,
         "owner_name": owner_name,
+        "card_member": owner["card_name"],  # Auto-populated from owner
         "active": active,
     }
 
@@ -375,6 +384,7 @@ def create_account(account_name: str, bank_name: str, owner_name: str, active: b
             f"[green]✓ Created account: {result['account_name']} ({result['owner_name']})[/green]"
         )
         console.print(f"Bank: {result['bank_name']}")
+        console.print(f"Card Member: {result['card_member']}")
         console.print(f"Active: {result['active']}")
     else:
         console.print("[red]✗ Failed to create account[/red]")
@@ -1280,6 +1290,7 @@ def report_by_account(
                 )
 
                 expense_table = Table()
+                expense_table.add_column("ID", style="cyan", max_width=8)
                 expense_table.add_column("Date", style="yellow", min_width=10)
                 expense_table.add_column("Description", style="white", max_width=40)
                 expense_table.add_column(
@@ -1289,6 +1300,7 @@ def report_by_account(
 
                 for expense in group["expenses"]:
                     expense_table.add_row(
+                        expense["expense_id"][:8],
                         format_date(expense["date"]),
                         expense["description"][:40]
                         + ("..." if len(expense["description"]) > 40 else ""),
