@@ -487,6 +487,66 @@ def create_expense(expense_data: ExpenseCreate) -> Optional[Expense]:
         _handle_error(e, "create expense")
 
 
+def update_expense_from_csv(expense_id: str, expense_data: ExpenseCreate) -> Optional[Expense]:
+    """Update an existing expense from CSV upload data (overwrites all fields except expense_id and created_at)."""
+    # First get the existing expense to preserve its ID and created_at
+    existing_expense = get_expense(expense_id)
+    if not existing_expense:
+        return None
+
+    # Create updated expense object, preserving expense_id and created_at from existing
+    updated_expense = Expense(
+        expense_id=existing_expense.expense_id,
+        created_at=existing_expense.created_at,
+        **expense_data.model_dump()
+    )
+
+    # Prepare complete item for DynamoDB (full overwrite)
+    item = {
+        "PK": updated_expense.get_pk(),
+        "SK": updated_expense.get_sk(),
+        "EntityType": "Expense",
+        "expense_id": updated_expense.expense_id,
+        "date": updated_expense.date.isoformat(),
+        "description": updated_expense.description,
+        "card_member": updated_expense.card_member,
+        "assigned_card_member": updated_expense.assigned_card_member,
+        "amount": str(updated_expense.amount),
+        "is_auto_categorized": updated_expense.is_auto_categorized,
+        "needs_review": updated_expense.needs_review,
+        "created_at": updated_expense.created_at.isoformat(),
+    }
+
+    # Add optional fields
+    optional_fields = [
+        "account_number",
+        "account_id",
+        "extended_details",
+        "appears_on_statement_as",
+        "address",
+        "city_state",
+        "zip_code",
+        "country",
+        "reference",
+        "category_hint",
+    ]
+    for field in optional_fields:
+        value = getattr(updated_expense, field)
+        if value is not None:
+            item[field] = value
+
+    # Add category if assigned
+    if updated_expense.category:
+        item["category"] = updated_expense.category
+
+    try:
+        _table.put_item(Item=item)
+        logger.info(f"Updated expense from CSV: {expense_id}")
+        return updated_expense
+    except ClientError as e:
+        _handle_error(e, "update expense from CSV")
+
+
 def get_expense(expense_id: str) -> Optional[Expense]:
     """Get expense by ID using direct get_item."""
     try:
@@ -499,6 +559,25 @@ def get_expense(expense_id: str) -> Optional[Expense]:
         return None
     except ClientError as e:
         _handle_error(e, "get expense")
+
+
+def get_expense_by_reference(reference: str) -> Optional[Expense]:
+    """Get expense by reference field using ReferenceIndex GSI."""
+    if not reference or not reference.strip():
+        return None
+
+    try:
+        response = _table.query(
+            IndexName="ReferenceIndex",
+            KeyConditionExpression=Key("reference").eq(reference.strip())
+        )
+
+        if response["Items"]:
+            # Return the first matching expense (should only be one)
+            return _item_to_expense(response["Items"][0])
+        return None
+    except ClientError as e:
+        _handle_error(e, "get expense by reference")
 
 
 def search_expenses_by_id_prefix(prefix: str) -> List[Expense]:

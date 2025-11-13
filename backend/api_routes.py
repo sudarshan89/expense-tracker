@@ -43,6 +43,8 @@ class UploadResponse(BaseModel):
     success: bool
     message: str
     processed_count: int
+    created_count: int = 0
+    updated_count: int = 0
     error_count: int
     errors: List[str] = Field(default_factory=list)
     auto_categorized_count: int = 0
@@ -172,7 +174,7 @@ async def get_category(name: str) -> Category:
     return category
 
 
-@router.patch("/categories/{name}/deactivate", response_model=Category)
+@router.patch("x/categories/{name}/deactivate", response_model=Category)
 async def deactivate_category(name: str) -> Category:
     """Deactivate a category."""
     update_data = CategoryUpdate(active=False)
@@ -310,6 +312,8 @@ async def upload_csv_expenses(file: UploadFile = File(...)) -> UploadResponse:
             success=False,
             message="File validation failed",
             processed_count=0,
+            created_count=0,
+            updated_count=0,
             error_count=len(validation_errors),
             errors=validation_errors,
             auto_categorized_count=0,
@@ -320,15 +324,26 @@ async def upload_csv_expenses(file: UploadFile = File(...)) -> UploadResponse:
     csv_text = file_content.decode("utf-8")
     processor = UploadProcessingService()
     (
-        processed_count,
+        created_count,
+        updated_count,
         auto_categorized_count,
         needs_review_count,
+        processed_count,
         all_errors,
     ) = processor.process_csv_text(csv_text)
     total_errors = len(all_errors)
 
     success = total_errors == 0 and processed_count > 0
     message = f"Processed {processed_count} expenses"
+    if created_count > 0:
+        message += f" ({created_count} created"
+        if updated_count > 0:
+            message += f", {updated_count} updated)"
+        else:
+            message += ")"
+    elif updated_count > 0:
+        message += f" ({updated_count} updated)"
+
     if auto_categorized_count > 0:
         message += f", {auto_categorized_count} auto-categorized"
     if needs_review_count > 0:
@@ -340,6 +355,8 @@ async def upload_csv_expenses(file: UploadFile = File(...)) -> UploadResponse:
         success=success,
         message=message,
         processed_count=processed_count,
+        created_count=created_count,
+        updated_count=updated_count,
         error_count=total_errors,
         errors=all_errors[:10],  # Limit to first 10 errors for response size
         auto_categorized_count=auto_categorized_count,

@@ -27,7 +27,7 @@ def parse_csv_expenses(csv_content: str) -> Tuple[List[ExpenseCreate], List[str]
         csv_reader = csv.DictReader(StringIO(csv_content))
 
         # Check if required headers exist
-        required_headers = {"Date", "Description", "Card Member", "Amount"}
+        required_headers = {"Date", "Description", "Card Member", "Amount", "Reference"}
         if not required_headers.issubset(set(csv_reader.fieldnames or [])):
             missing = required_headers - set(csv_reader.fieldnames or [])
             errors.append(f"Missing required CSV headers: {', '.join(missing)}")
@@ -82,6 +82,11 @@ def _parse_expense_row(row: Dict[str, str]) -> ExpenseCreate:
     if not card_member:
         raise ValueError("Card Member is required")
 
+    # Reference is now required for deduplication
+    reference = row.get("Reference", "").strip()
+    if not reference:
+        raise ValueError("Reference is required for deduplication")
+
     # Optional fields
     account_number = row.get("Account #", "").strip() or None
     extended_details = row.get("Extended Details", "").strip() or None
@@ -92,7 +97,6 @@ def _parse_expense_row(row: Dict[str, str]) -> ExpenseCreate:
     city_state = row.get("City/State", "").strip() or None
     zip_code = row.get("Zip Code", "").strip() or None
     country = row.get("Country", "").strip() or None
-    reference = row.get("Reference", "").strip() or None
     category_hint_str = row.get("Category", "").strip()
     category_hint = [category_hint_str] if category_hint_str else None
 

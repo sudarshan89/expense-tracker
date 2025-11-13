@@ -565,7 +565,7 @@ def list_categories(account_id: Optional[str]):
 @click.argument("name")
 @click.option("--labels", required=True, help="Comma-separated list of labels")
 def update_category_labels(name: str, labels: str):
-    """Update category labels."""
+    """Update category labels (replaces existing labels)."""
     client = ExpenseTrackerClient()
 
     label_list = [label.strip() for label in labels.split(",") if label.strip()]
@@ -582,6 +582,48 @@ def update_category_labels(name: str, labels: str):
         )
     else:
         console.print("[red]✗ Failed to update category labels[/red]")
+        sys.exit(1)
+
+
+@categories.command("append-labels")
+@click.argument("name")
+@click.option("--labels", required=True, help="Comma-separated list of labels to append")
+def append_category_labels(name: str, labels: str):
+    """Append labels to category without removing existing ones."""
+    client = ExpenseTrackerClient()
+
+    # First, fetch the existing category to get current labels
+    existing_category = client.make_request("GET", f"/categories/{name}")
+    if not existing_category:
+        console.print(f"[red]✗ Category '{name}' not found[/red]")
+        sys.exit(1)
+
+    # Get existing labels
+    existing_labels = existing_category.get("labels", [])
+
+    # Parse new labels from user input
+    new_labels = [label.strip() for label in labels.split(",") if label.strip()]
+
+    # Merge new labels with existing labels (avoiding duplicates, preserving order)
+    combined_labels = existing_labels.copy()
+    for label in new_labels:
+        if label not in combined_labels:
+            combined_labels.append(label)
+
+    # Send combined list to backend
+    update_data = {"labels": combined_labels}
+
+    result = client.make_request(
+        "PATCH", f"/categories/{name}/labels", json=update_data
+    )
+    if result:
+        console.print(f"[green]✓ Appended labels to category: {result['name']}[/green]")
+        console.print(
+            f"All labels: {', '.join(result['labels']) if result['labels'] else 'None'}"
+        )
+        console.print(f"[dim]Added: {', '.join(new_labels)}[/dim]")
+    else:
+        console.print("[red]✗ Failed to append category labels[/red]")
         sys.exit(1)
 
 

@@ -14,7 +14,8 @@ class AutoCategorizationService:
     """Service for automatically categorizing expenses based on historical data and label matching."""
 
     def __init__(self):
-        pass
+        self._recent_expenses_cache: Optional[List[Expense]] = None
+        self._categories_cache: Optional[List] = None
 
     def categorize_expense(self, expense: Expense) -> Expense:
         """
@@ -122,8 +123,12 @@ class AutoCategorizationService:
             Category name if match found, None otherwise
         """
         try:
-            # Get all active categories
-            categories = db.list_categories()
+            # Get all active categories (cached for performance)
+            if self._categories_cache is not None:
+                categories = self._categories_cache
+            else:
+                categories = db.list_categories()
+                self._categories_cache = categories
             active_categories = [cat for cat in categories if cat.active]
 
             # Prioritize categories matching the expense's card_member
@@ -164,7 +169,11 @@ class AutoCategorizationService:
             return None
 
     def _get_recent_categorized_expenses(self, since_date: datetime) -> List[Expense]:
-        """Get categorized expenses since the given date."""
+        """Get categorized expenses since the given date (cached for performance)."""
+        # Use cache to avoid repeated table scans during bulk uploads
+        if self._recent_expenses_cache is not None:
+            return self._recent_expenses_cache
+
         # This is a simplified approach - in production you'd want more efficient querying
         from core.models import ExpenseFilter
 
@@ -172,7 +181,8 @@ class AutoCategorizationService:
         all_recent = db.list_expenses(expense_filter)
 
         # Filter to only categorized expenses (not "Unknown")
-        return [exp for exp in all_recent if exp.category and exp.category != "Unknown"]
+        self._recent_expenses_cache = [exp for exp in all_recent if exp.category and exp.category != "Unknown"]
+        return self._recent_expenses_cache
 
     @staticmethod
     def _normalize_text(text: Optional[str]) -> str:
@@ -241,8 +251,12 @@ class AutoCategorizationService:
             Category name of matching Unknown category, or None if not found
         """
         try:
-            # Get all categories
-            categories = db.list_categories()
+            # Get all categories (cached for performance)
+            if self._categories_cache is not None:
+                categories = self._categories_cache
+            else:
+                categories = db.list_categories()
+                self._categories_cache = categories
 
             # Filter for Unknown categories (names ending with "-Unknown")
             unknown_categories = [

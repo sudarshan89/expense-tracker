@@ -110,6 +110,8 @@ resources:
             AttributeType: S
           - AttributeName: GSI1SK
             AttributeType: S
+          - AttributeName: reference
+            AttributeType: S
         KeySchema:
           - AttributeName: PK
             KeyType: HASH
@@ -122,6 +124,12 @@ resources:
                 KeyType: HASH
               - AttributeName: GSI1SK
                 KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+          - IndexName: ReferenceIndex
+            KeySchema:
+              - AttributeName: reference
+                KeyType: HASH
             Projection:
               ProjectionType: ALL
         SSESpecification:
